@@ -62,3 +62,18 @@ htmlcov/
 # Backup files
 *.bak
 *.backup
+
+# Bot state and trading data
+bot_state.json
+*.json.backup
+
+# SSH keys (never commit!)
+*.pem
+*.key
+*_rsa
+*_ed25519
+id_*
+
+# Deployment logs
+deployment.log
+backup.log

@@ -1,0 +1,16 @@
+# Sudoers configuration for deploy user - GitHub Actions automation
+# This file allows the deploy user to run any command without a password
+# enabling automated deployments.
+#
+# Installation on VPS:
+# scp scripts/sudoers-deploy deploy@your-vps:/tmp/
+# ssh deploy@your-vps
+# sudo cp /tmp/sudoers-deploy /etc/sudoers.d/deploy-automation
+# sudo chmod 440 /etc/sudoers.d/deploy-automation
+# sudo chown root:root /etc/sudoers.d/deploy-automation
+# sudo visudo -c  # Verify syntax
+
+# Grant deploy user full sudo access without password
+# This is required for GitHub Actions automation
+# Security: Only the deploy user has SSH access (enforced by SSH hardening)
+deploy ALL=(ALL) NOPASSWD: ALL

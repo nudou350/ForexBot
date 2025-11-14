@@ -489,7 +489,10 @@ class TradingDashboard:
         log = flask_logging.getLogger('werkzeug')
         log.setLevel(flask_logging.ERROR)
 
-        self.app.run(debug=False, port=self.port, host='0.0.0.0')
+        # Security: Bind to localhost only (127.0.0.1)
+        # Never use 0.0.0.0 on production - it exposes to internet!
+        # Access via nginx reverse proxy instead
+        self.app.run(debug=False, port=self.port, host='127.0.0.1')
 
 
 def main():

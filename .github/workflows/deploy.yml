@@ -1,0 +1,143 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
+
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  deploy:
+    name: Deploy to Production VPS
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          # VPS Configuration (hardcoded for security)
+          VPS_HOST="72.60.56.80"
+          VPS_PORT="22"
+          VPS_USER="deploy"
+
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p $VPS_PORT $VPS_HOST >> ~/.ssh/known_hosts
+
+      - name: Deploy to VPS
+        run: |
+          # VPS Configuration
+          VPS_HOST="72.60.56.80"
+          VPS_PORT="22"
+          VPS_USER="deploy"
+
+          ssh -i ~/.ssh/deploy_key -p $VPS_PORT ${VPS_USER}@${VPS_HOST} << 'ENDSSH'
+            # Log deployment attempt (auditd will capture this)
+            echo "[$(date)] Deployment started by GitHub Actions" | tee -a ~/deployment.log
+
+            # Change to project directory
+            cd /home/deploy/forex-bot || exit 1
+
+            # Run deployment script
+            bash scripts/deploy.sh
+
+            # Log completion
+            DEPLOY_EXIT=$?
+            echo "[$(date)] Deployment completed with exit code: $DEPLOY_EXIT" | tee -a ~/deployment.log
+
+            # Exit with deployment script's exit code
+            exit $DEPLOY_EXIT
+          ENDSSH
+
+      - name: Verify Security Compliance
+        run: |
+          # VPS Configuration
+          VPS_HOST="72.60.56.80"
+          VPS_PORT="22"
+          VPS_USER="deploy"
+
+          ssh -i ~/.ssh/deploy_key -p $VPS_PORT ${VPS_USER}@${VPS_HOST} << 'ENDSSH'
+            echo "=== Security Compliance Check ==="
+
+            # Verify firewall is active
+            if sudo ufw status | grep -q "Status: active"; then
+              echo "✓ UFW firewall is active"
+            else
+              echo "✗ WARNING: Firewall not active!"
+              exit 1
+            fi
+
+            # Verify fail2ban is running
+            if systemctl is-active --quiet fail2ban; then
+              echo "✓ fail2ban is active"
+            else
+              echo "✗ WARNING: fail2ban not running!"
+              exit 1
+            fi
+
+            # Critical: Verify no applications are exposed to internet
+            # Applications must bind to 127.0.0.1 (localhost) only
+            if ss -tlnp 2>/dev/null | grep -E ':(3000|3001|3002|5000|8000)' | grep -q '0.0.0.0\|::'; then
+              echo "✗ CRITICAL SECURITY ERROR: Application exposed to internet!"
+              echo "Applications must bind to 127.0.0.1 only"
+              ss -tlnp 2>/dev/null | grep -E ':(3000|3001|3002|5000|8000)'
+              exit 1
+            else
+              echo "✓ No applications exposed to internet (localhost-only binding verified)"
+            fi
+
+            echo "✓ All security checks passed"
+          ENDSSH
+
+      - name: Verify Deployment
+        run: |
+          # VPS Configuration
+          VPS_HOST="72.60.56.80"
+          VPS_PORT="22"
+          VPS_USER="deploy"
+
+          ssh -i ~/.ssh/deploy_key -p $VPS_PORT ${VPS_USER}@${VPS_HOST} << 'ENDSSH'
+            # Check if bot service is running
+            if sudo systemctl is-active --quiet forexbot-trading; then
+              echo "✓ Bot service is running"
+
+              # Check if bot process exists
+              if pgrep -f "python.*main.py" > /dev/null; then
+                echo "✓ Bot process is active"
+              else
+                echo "✗ Bot process not found"
+                exit 1
+              fi
+            else
+              echo "✗ Bot service is not running"
+              exit 1
+            fi
+          ENDSSH
+
+      - name: Cleanup
+        if: always()
+        run: |
+          rm -f ~/.ssh/deploy_key
+
+      - name: Deployment Status
+        if: success()
+        run: |
+          echo "🎉 Deployment completed successfully!"
+          echo "Bot is running on production VPS"
+
+      - name: Deployment Failed
+        if: failure()
+        run: |
+          echo "❌ Deployment failed"
+          echo "Check the logs above for errors"
+          echo "The deployment script includes automatic rollback"
