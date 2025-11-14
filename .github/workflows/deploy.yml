@@ -45,12 +45,20 @@ jobs:
           VPS_USER="deploy"
 
           # Create credentials file on VPS (secure permissions)
-          ssh -i ~/.ssh/deploy_key -p $VPS_PORT ${VPS_USER}@${VPS_HOST} "cat > /home/deploy/.ibkr-credentials << EOF
-IBKR_USERNAME=${IBKR_USERNAME}
-IBKR_PASSWORD=${IBKR_PASSWORD}
-EOF
-chmod 600 /home/deploy/.ibkr-credentials
-echo '✓ IBKR credentials deployed securely'"
+          ssh -i ~/.ssh/deploy_key -p $VPS_PORT ${VPS_USER}@${VPS_HOST} << 'ENDSSH'
+            cat > /home/deploy/.ibkr-credentials << 'ENDCREDS'
+IBKR_USERNAME=PLACEHOLDER_USERNAME
+IBKR_PASSWORD=PLACEHOLDER_PASSWORD
+ENDCREDS
+            chmod 600 /home/deploy/.ibkr-credentials
+            echo "✓ IBKR credentials file created"
+          ENDSSH
+
+          # Update credentials with actual values
+          ssh -i ~/.ssh/deploy_key -p $VPS_PORT ${VPS_USER}@${VPS_HOST} \
+            "sed -i 's/PLACEHOLDER_USERNAME/${IBKR_USERNAME}/g' /home/deploy/.ibkr-credentials && \
+             sed -i 's/PLACEHOLDER_PASSWORD/${IBKR_PASSWORD}/g' /home/deploy/.ibkr-credentials && \
+             echo '✓ IBKR credentials deployed securely'"
 
       - name: Deploy to VPS
         run: |
