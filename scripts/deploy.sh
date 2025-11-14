@@ -107,8 +107,28 @@ fi
 # log "Step 4: Running database migrations..."
 # python manage.py migrate
 
-# Step 6: Restart the bot service
-log "Step 4: Restarting bot service..."
+# Step 6: Restart IB Gateway service (if exists and credentials are available)
+IBGATEWAY_SERVICE="ibgateway"
+if sudo systemctl list-units --type=service --all | grep -q "$IBGATEWAY_SERVICE"; then
+    if [ -f "/home/deploy/.ibkr-credentials" ]; then
+        log "Restarting IB Gateway service..."
+        sudo systemctl restart "$IBGATEWAY_SERVICE"
+        sleep 10  # Wait for IB Gateway to start and connect
+
+        if sudo systemctl is-active --quiet "$IBGATEWAY_SERVICE"; then
+            log "${GREEN}✓${NC} IB Gateway restarted successfully"
+        else
+            warning "IB Gateway service failed to start (check credentials)"
+        fi
+    else
+        log "IB Gateway credentials not found, skipping restart"
+    fi
+else
+    log "IB Gateway service not found"
+fi
+
+# Step 7: Restart the bot service
+log "Step 5: Restarting bot service..."
 
 # Check if service exists
 if sudo systemctl list-units --type=service --all | grep -q "$SERVICE_NAME"; then
@@ -130,7 +150,7 @@ else
     warning "Service $SERVICE_NAME not found. Skipping restart."
 fi
 
-# Step 6.5: Restart dashboard service (if exists)
+# Step 8: Restart dashboard service (if exists)
 DASHBOARD_SERVICE="forexbot-dashboard"
 if sudo systemctl list-units --type=service --all | grep -q "$DASHBOARD_SERVICE"; then
     log "Restarting dashboard service..."
@@ -146,8 +166,8 @@ else
     log "Dashboard service not found (will be accessible when started manually)"
 fi
 
-# Step 7: Health check
-log "Step 5: Performing health check..."
+# Step 9: Health check
+log "Step 6: Performing health check..."
 
 # Wait for bot to initialize
 sleep 5
@@ -171,8 +191,8 @@ if [ -f "$PROJECT_DIR/eurcad_bot.log" ]; then
     fi
 fi
 
-# Step 8: Cleanup old backups (keep last 10)
-log "Step 6: Cleaning up old backups..."
+# Step 10: Cleanup old backups (keep last 10)
+log "Step 7: Cleaning up old backups..."
 cd "$BACKUP_DIR" || exit 1
 ls -t pre-deploy-*.tar.gz | tail -n +11 | xargs -r rm
 log "Old backups cleaned up"

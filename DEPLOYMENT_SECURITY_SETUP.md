@@ -108,8 +108,12 @@ In your GitHub repository, go to **Settings → Secrets and variables → Action
 | Secret Name | Value | Description |
 |-------------|-------|-------------|
 | `VPS_SSH_KEY` | `<your-private-ssh-key>` | The SSH private key that matches the public key in `~/.ssh/authorized_keys` |
+| `IBKR_USERNAME` | `<your-ibkr-username>` | Your Interactive Brokers username for paper trading |
+| `IBKR_PASSWORD` | `<your-ibkr-password>` | Your Interactive Brokers password |
 
-**That's it!** Only one secret is required. The VPS connection details (host, port, user) are hardcoded in the workflow for simplicity:
+**Note:** The IBKR credentials are stored securely on the VPS in `/home/deploy/.ibkr-credentials` with 600 permissions (readable only by deploy user).
+
+The VPS connection details (host, port, user) are hardcoded in the workflow for simplicity:
 - Host: `72.60.56.80`
 - Port: `22`
 - User: `deploy` (enforced by VPS security hardening)

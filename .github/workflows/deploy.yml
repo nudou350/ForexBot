@@ -34,6 +34,28 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -p $VPS_PORT $VPS_HOST >> ~/.ssh/known_hosts
 
+      - name: Deploy IBKR Credentials
+        env:
+          IBKR_USERNAME: ${{ secrets.IBKR_USERNAME }}
+          IBKR_PASSWORD: ${{ secrets.IBKR_PASSWORD }}
+        run: |
+          # VPS Configuration
+          VPS_HOST="72.60.56.80"
+          VPS_PORT="22"
+          VPS_USER="deploy"
+
+          # Create credentials file on VPS (secure permissions)
+          ssh -i ~/.ssh/deploy_key -p $VPS_PORT ${VPS_USER}@${VPS_HOST} << ENDSSH
+            # Create credentials file
+            cat > /home/deploy/.ibkr-credentials << 'EOF'
+IBKR_USERNAME=$IBKR_USERNAME
+IBKR_PASSWORD=$IBKR_PASSWORD
+EOF
+            # Secure permissions (readable only by deploy user)
+            chmod 600 /home/deploy/.ibkr-credentials
+            echo "✓ IBKR credentials deployed securely"
+          ENDSSH
+
       - name: Deploy to VPS
         run: |
           # VPS Configuration
