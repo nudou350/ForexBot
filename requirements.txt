@@ -1,0 +1,22 @@
+# Core dependencies
+ib_insync==0.9.86
+pandas>=2.2.0
+numpy>=1.26.4
+
+# Visualization and dashboard
+matplotlib>=3.8.0
+plotly>=5.18.0
+dash>=2.14.0
+
+# Utilities
+python-dateutil==2.8.2
+pytz==2023.3
+
+# Optional: News and sentiment analysis
+requests==2.31.0
+beautifulsoup4==4.12.2
+
+# Development
+pytest==7.4.3
+black==23.12.1
+flake8==7.0.0

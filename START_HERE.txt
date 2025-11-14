@@ -1,0 +1,138 @@
+===============================================================================
+EUR/CAD TRADING BOT - START HERE
+===============================================================================
+
+WELCOME! You have a complete, production-ready EUR/CAD trading bot.
+
+QUICK START (5 steps):
+
+1. INSTALL DEPENDENCIES
+   Run: pip install -r requirements.txt
+
+2. VERIFY INSTALLATION
+   Run: python verify_installation.py
+
+3. RUN TESTS
+   Run: python tests/test_strategies.py
+
+4. SETUP IBKR TWS
+   - Download TWS from InteractiveBrokers.com
+   - Enable API on port 7497 (paper trading)
+   - See QUICKSTART.md for detailed instructions
+
+5. START PAPER TRADING
+   Run: python main.py
+
+===============================================================================
+IMPORTANT REMINDERS:
+===============================================================================
+
+- NEVER skip paper trading (minimum 3 months required)
+- Start with PAPER_TRADING = True in config/config.py
+- Monitor daily, review weekly
+- Only go live after 3+ months of successful paper trading
+- Start small when transitioning to live (10% of capital)
+
+===============================================================================
+DOCUMENTATION:
+===============================================================================
+
+For quick setup:       See QUICKSTART.md
+For full guide:        See README.md
+For project details:   See PROJECT_SUMMARY.md
+For implementation:    See IMPLEMENTATION_COMPLETE.md
+For specification:     See CLAUDE.md
+
+===============================================================================
+FILE STRUCTURE:
+===============================================================================
+
+ForexBot/
+├── main.py                         # <-- Run this to start the bot
+├── verify_installation.py          # <-- Run this to check setup
+├── config/config.py                # <-- Configure settings here
+├── src/
+│   ├── bot.py                      # Main bot logic
+│   ├── strategies/                 # Trading strategies
+│   ├── risk_management/            # Risk protection
+│   ├── market_analysis/            # Market regime detection
+│   ├── ibkr/                       # IBKR API connection
+│   └── backtesting/                # Backtesting framework
+├── tests/test_strategies.py        # Run to test strategies
+└── examples/backtest_example.py    # Run to see backtesting
+
+===============================================================================
+NEXT STEPS:
+===============================================================================
+
+1. Install: pip install -r requirements.txt
+2. Verify: python verify_installation.py
+3. Test:   python tests/test_strategies.py
+4. Setup:  Configure IBKR TWS (see QUICKSTART.md)
+5. Trade:  python main.py (paper trading only!)
+
+===============================================================================
+TARGET PERFORMANCE:
+===============================================================================
+
+Win Rate:          65-75%
+Monthly Return:    8-12%
+Max Drawdown:      <12%
+Risk per Trade:    1%
+Profit Factor:     >2.0
+
+===============================================================================
+SAFETY FIRST:
+===============================================================================
+
+This bot includes:
+- Multi-layer risk management
+- Emergency stop systems
+- Position sizing automation
+- Drawdown protection
+- Circuit breakers
+
+But YOU must:
+- Paper trade for 3+ months MINIMUM
+- Monitor the bot daily
+- Review performance weekly
+- Respect all safety limits
+- Only trade with money you can afford to lose
+
+===============================================================================
+SUPPORT:
+===============================================================================
+
+Check these files in order:
+1. QUICKSTART.md      - Step-by-step setup
+2. README.md          - Complete documentation
+3. PROJECT_SUMMARY.md - Detailed overview
+4. eurcad_bot.log     - Bot activity log
+
+Common Issues:
+- "Failed to connect": Check TWS is running on port 7497
+- "No signals":        Check market regime in logs
+- "Position size 0":   Increase capital or check stop loss
+
+===============================================================================
+WARNINGS:
+===============================================================================
+
+- Forex trading involves substantial risk
+- You can lose all your capital
+- Past performance doesn't guarantee future results
+- Never skip paper trading
+- Start small when going live
+- Use only risk capital you can afford to lose
+
+===============================================================================
+
+Ready to start?
+
+Run: python verify_installation.py
+
+Then: See QUICKSTART.md for next steps
+
+Good luck and trade responsibly!
+
+===============================================================================
