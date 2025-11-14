@@ -9,6 +9,8 @@ from datetime import datetime
 from typing import Dict, Tuple, Optional
 import sys
 import os
+import json
+import threading
 
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
@@ -65,6 +67,72 @@ class EURCADTradingBot:
         )
         self.logger = logging.getLogger(__name__)
 
+        # State file for dashboard
+        self.state_file = 'bot_state.json'
+        self.closed_trades = []  # Track all closed trades
+        self.dashboard_thread = None  # Dashboard thread
+
+    def start_dashboard(self) -> None:
+        """Start the dashboard in a background thread"""
+        if not config.ENABLE_DASHBOARD:
+            return
+
+        try:
+            from src.dashboard.dashboard import TradingDashboard
+
+            def run_dashboard():
+                dashboard = TradingDashboard(port=config.DASHBOARD_PORT)
+                dashboard.run(show_banner=False)
+
+            self.dashboard_thread = threading.Thread(target=run_dashboard, daemon=True)
+            self.dashboard_thread.start()
+
+            print(f"\n{'='*50}")
+            print(f"  Dashboard started!")
+            print(f"  Open your browser: http://localhost:{config.DASHBOARD_PORT}")
+            print(f"{'='*50}\n")
+
+            self.logger.info(f"Dashboard started on port {config.DASHBOARD_PORT}")
+
+        except Exception as e:
+            self.logger.error(f"Failed to start dashboard: {e}")
+            print(f"Warning: Dashboard failed to start: {e}")
+            print("Bot will continue without dashboard.\n")
+
+    def save_state(self) -> None:
+        """Save current bot state to JSON file for dashboard"""
+        try:
+            # Calculate win rate
+            total_trades = len(self.closed_trades)
+            wins = sum(1 for t in self.closed_trades if t.get('pnl', 0) > 0)
+            win_rate = (wins / total_trades * 100) if total_trades > 0 else 0
+
+            # Build equity curve
+            equity_curve = [self.initial_capital]
+            running_capital = self.initial_capital
+            for trade in self.closed_trades:
+                running_capital += trade.get('pnl', 0)
+                equity_curve.append(running_capital)
+
+            state = {
+                'status': 'Running' if not self.risk_manager.trading_halted else 'Halted',
+                'current_capital': self.risk_manager.current_capital,
+                'win_rate': win_rate,
+                'total_trades': total_trades,
+                'open_positions': len(self.risk_manager.open_positions),
+                'market_regime': self.current_regime or 'N/A',
+                'active_strategy': self.active_strategy.name if self.active_strategy else 'N/A',
+                'equity_curve': equity_curve,
+                'trades': self.closed_trades,
+                'last_update': datetime.now().isoformat()
+            }
+
+            with open(self.state_file, 'w') as f:
+                json.dump(state, f, indent=2)
+
+        except Exception as e:
+            self.logger.error(f"Error saving state: {e}")
+
     def start(self) -> None:
         """Start the trading bot"""
         mode = "PAPER TRADING" if self.paper_trading else "LIVE TRADING"
@@ -79,6 +147,13 @@ class EURCADTradingBot:
             return
 
         self.logger.info("Connected to IBKR successfully")
+
+        # Start dashboard if enabled
+        self.start_dashboard()
+
+        # Give dashboard a moment to start
+        if config.ENABLE_DASHBOARD:
+            time.sleep(2)
 
         # Main trading loop
         try:
@@ -149,6 +224,9 @@ class EURCADTradingBot:
 
         # Manage open positions
         self.manage_positions(df)
+
+        # Save state for dashboard
+        self.save_state()
 
     def select_strategy(self, regime: str) -> Tuple[str, Dict]:
         """

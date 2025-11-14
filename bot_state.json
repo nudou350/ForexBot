@@ -1,0 +1,14 @@
+{
+  "status": "Running",
+  "current_capital": 1000,
+  "win_rate": 0,
+  "total_trades": 0,
+  "open_positions": 0,
+  "market_regime": "WEAK_TREND",
+  "active_strategy": "Mean Reversion",
+  "equity_curve": [
+    1000
+  ],
+  "trades": [],
+  "last_update": "2025-11-14T14:33:30.837171"
+}

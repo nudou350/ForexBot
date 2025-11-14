@@ -80,7 +80,7 @@ LOG_LEVEL = 'INFO'
 LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 
 # Dashboard (Optional)
-ENABLE_DASHBOARD = False
+ENABLE_DASHBOARD = True  # Auto-start dashboard with the bot
 DASHBOARD_PORT = 8050
 DASHBOARD_UPDATE_INTERVAL = 5000  # 5 seconds
 
