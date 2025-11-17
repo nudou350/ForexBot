@@ -65,6 +65,31 @@ jobs:
             # Change to project directory
             cd /home/deploy/forex-bot || exit 1
 
+            # PRE-DEPLOYMENT FIX: Handle bot_state.json conflict
+            echo "Checking for bot_state.json conflicts..."
+
+            if [ -f "bot_state.json" ]; then
+              echo "Backing up bot_state.json..."
+              cp bot_state.json bot_state.json.backup
+            fi
+
+            # Stash any local changes to runtime files
+            echo "Stashing local changes..."
+            git stash push -m "Auto-stash before deployment $(date +%Y%m%d_%H%M%S)" -- bot_state.json 2>/dev/null || true
+
+            # Ensure we're on main branch and pull latest
+            git checkout main 2>/dev/null || true
+            git fetch origin
+
+            # Force reset to origin/main to ensure clean state
+            git reset --hard origin/main
+
+            # Restore bot_state.json if it was backed up
+            if [ -f "bot_state.json.backup" ]; then
+              echo "Restoring bot_state.json..."
+              mv bot_state.json.backup bot_state.json
+            fi
+
             # Run deployment script
             bash scripts/deploy.sh
 
