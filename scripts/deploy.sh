@@ -84,7 +84,25 @@ if git diff --quiet HEAD origin/main; then
     exit 0
 fi
 
+# Preserve runtime state files before pulling
+log "Preserving runtime state files..."
+if [ -f "bot_state.json" ]; then
+    cp bot_state.json bot_state.json.backup
+    log "bot_state.json backed up"
+fi
+
+# Stash any local changes to runtime files
+log "Stashing local changes to runtime files..."
+git stash push -m "Auto-stash before deployment $(date +%Y%m%d_%H%M%S)" -- bot_state.json 2>/dev/null || true
+
+# Pull latest code
 git pull origin main
+
+# Restore runtime state files
+if [ -f "bot_state.json.backup" ]; then
+    mv bot_state.json.backup bot_state.json
+    log "bot_state.json restored"
+fi
 
 NEW_COMMIT=$(git rev-parse HEAD)
 log "New commit: $NEW_COMMIT"
