@@ -180,16 +180,32 @@ class EURCADTradingBot:
         if not is_trading_hours:
             return
 
-        # Get market data
+        # Get market data (this now handles reconnection automatically)
         df = self.ibkr.get_historical_data()
         if df is None or len(df) < config.MIN_DATA_POINTS:
             self.logger.warning("Insufficient data")
             self.emergency_stop.log_api_error()
+
+            # If trading was halted due to API errors and we successfully reconnected,
+            # we should resume trading
+            if (self.risk_manager.trading_halted and
+                self.risk_manager.halt_reason == "Multiple consecutive API errors" and
+                self.ibkr.is_connected):
+                self.logger.info("Connection restored but data still insufficient, keeping halt")
+
             return
 
         # Reset API errors on successful data fetch
         self.emergency_stop.reset_api_errors()
         self.emergency_stop.update_price_timestamp(current_time)
+
+        # If trading was halted due to API errors and we successfully got data,
+        # auto-resume trading
+        if (self.risk_manager.trading_halted and
+            self.risk_manager.halt_reason == "Multiple consecutive API errors"):
+            self.logger.info("Connection restored and data received. Auto-resuming trading...")
+            print("\n✅ Connection restored. Resuming trading...")
+            self.risk_manager.resume_trading()
 
         # Check emergency conditions
         should_stop, stop_reason = self.emergency_stop.check_emergency_conditions(

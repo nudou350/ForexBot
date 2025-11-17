@@ -1,0 +1,157 @@
+================================================================================
+                        QUICK DEPLOYMENT GUIDE
+                  EUR/CAD Bot - Reconnection Fix v1.1.0
+================================================================================
+
+VERIFY LOCALLY FIRST
+================================================================================
+python pre_deploy_check.py
+
+Expected: "✅ ALL CHECKS PASSED - READY FOR DEPLOYMENT"
+
+DEPLOY TO VPS
+================================================================================
+
+# SSH to your VPS
+ssh user@your-vps-ip
+
+# Navigate to bot directory
+cd /path/to/ForexBot
+
+# Stop current bot
+pkill -f "python.*main.py"
+
+# Wait for it to stop
+sleep 5
+
+# Pull changes (if using git)
+git pull origin main
+
+# OR upload files manually (from local machine):
+# scp src/ibkr/connector.py user@vps:/path/to/ForexBot/src/ibkr/
+# scp src/risk_management/emergency_stop.py user@vps:/path/to/ForexBot/src/risk_management/
+# scp src/bot.py user@vps:/path/to/ForexBot/src/
+
+# Verify on VPS
+python3 pre_deploy_check.py
+
+# Start bot with new logic
+nohup python3 main.py > bot_output.log 2>&1 &
+
+# Verify running
+ps aux | grep "python.*main.py"
+
+# Watch logs
+tail -f eurcad_bot.log
+
+WHAT TO LOOK FOR
+================================================================================
+
+✅ "Connected to IBKR on 127.0.0.1:7497"
+✅ "Fetched 120 bars of historical data"
+✅ "Market regime: RANGING" (or other regime)
+
+If connection drops, should see:
+✅ "Attempting to reconnect to IBKR..."
+✅ "Reconnection attempt 1/5..."
+✅ "Reconnection successful!"
+✅ "✅ Connection restored. Resuming trading..."
+
+KEY IMPROVEMENTS
+================================================================================
+
+BEFORE: Error spiral -> 209+ errors -> halted forever -> manual fix needed
+AFTER:  Connection lost -> auto-reconnect (5s, 10s, 15s...) -> restored -> resume
+
+✅ No manual intervention needed
+✅ Runs 24/7 without supervision
+✅ Auto-recovers from connection issues
+
+MONITORING
+================================================================================
+
+# Check bot status
+ps aux | grep "python.*main.py"
+
+# View recent logs
+tail -50 eurcad_bot.log
+
+# Watch live
+tail -f eurcad_bot.log
+
+# Check error counts
+grep "API error logged" eurcad_bot.log | tail -10
+
+# Should show: "Consecutive: X, Total: Y"
+# Consecutive resets to 0 on success
+
+TROUBLESHOOTING
+================================================================================
+
+Bot not running?
+- Check: ps aux | grep "python.*main.py"
+- Check logs: tail -50 eurcad_bot.log
+- Check output: cat bot_output.log
+
+Bot won't connect?
+- Check IB Gateway: ps aux | grep gateway
+- Check port: netstat -tuln | grep 7497
+- Restart Gateway if needed
+
+Still errors accumulating?
+- Check if "consecutive" resets to 0 in logs
+- Check if you see "Resetting consecutive errors"
+- If not, connection isn't being restored
+
+NEED HELP?
+================================================================================
+
+1. Check logs: tail -100 eurcad_bot.log
+2. Run: python3 pre_deploy_check.py
+3. Review: DEPLOY_TO_VPS.md (detailed guide)
+4. Review: RECONNECTION_FIX.md (technical details)
+
+QUICK COMMANDS
+================================================================================
+
+# Stop bot
+pkill -f "python.*main.py"
+
+# Start bot
+nohup python3 main.py > bot_output.log 2>&1 &
+
+# Restart bot
+pkill -f "python.*main.py" && sleep 5 && nohup python3 main.py > bot_output.log 2>&1 &
+
+# Watch logs
+tail -f eurcad_bot.log
+
+# Check running
+ps aux | grep "python.*main.py"
+
+# Check recent errors
+grep ERROR eurcad_bot.log | tail -20
+
+# Check reconnections
+grep "reconnect" eurcad_bot.log
+
+SUCCESS CHECKLIST
+================================================================================
+
+✅ Pre-deploy check passed locally
+✅ Bot stopped on VPS
+✅ Files uploaded/pulled to VPS
+✅ Pre-deploy check passed on VPS
+✅ Bot started successfully
+✅ Logs show "Connected to IBKR"
+✅ No error spam in logs
+✅ Monitoring for 24 hours
+
+DONE!
+================================================================================
+
+Your bot should now run 24/7 without manual intervention.
+
+Questions? See DEPLOY_TO_VPS.md for detailed troubleshooting.
+
+Version: 1.1.0 | Date: 2025-11-17 | Status: Production Ready

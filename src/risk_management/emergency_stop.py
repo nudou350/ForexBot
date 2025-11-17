@@ -30,8 +30,11 @@ class EmergencyStopSystem:
         self.risk_manager = risk_manager
         self.last_api_check: Optional[datetime] = None
         self.api_error_count = 0
+        self.consecutive_api_errors = 0  # Track consecutive errors
         self.last_price_update: Optional[datetime] = None
         self.logger = logging.getLogger(__name__)
+        self.max_consecutive_errors = 3  # Halt after 3 consecutive errors
+        self.error_reset_threshold = 100  # Auto-reset if total errors exceed this
 
     def check_emergency_conditions(self, df: pd.DataFrame,
                                    current_time: datetime) -> Tuple[bool, Optional[str]]:
@@ -57,9 +60,9 @@ class EmergencyStopSystem:
                 if current_atr > avg_atr * 2:
                     return True, "Extreme volatility detected"
 
-        # 3. API connectivity issues
-        if self.api_error_count >= 3:
-            return True, "Multiple API errors detected"
+        # 3. API connectivity issues (use consecutive errors, not total)
+        if self.consecutive_api_errors >= self.max_consecutive_errors:
+            return True, "Multiple consecutive API errors detected"
 
         # 4. Stale price data
         if self.last_price_update:
@@ -106,16 +109,32 @@ class EmergencyStopSystem:
     def log_api_error(self) -> None:
         """Log API error and check if threshold reached"""
         self.api_error_count += 1
-        self.logger.error(f"API error logged. Total errors: {self.api_error_count}")
+        self.consecutive_api_errors += 1
 
-        if self.api_error_count >= 3:
-            self.risk_manager.halt_trading("Multiple API errors")
+        # Auto-reset if total errors get too high (prevents infinite accumulation)
+        if self.api_error_count >= self.error_reset_threshold:
+            self.logger.warning(
+                f"API error count exceeded {self.error_reset_threshold}, resetting total count "
+                f"(consecutive errors still at {self.consecutive_api_errors})"
+            )
+            self.api_error_count = self.consecutive_api_errors
+
+        self.logger.error(
+            f"API error logged. Consecutive: {self.consecutive_api_errors}, "
+            f"Total: {self.api_error_count}"
+        )
+
+        if self.consecutive_api_errors >= self.max_consecutive_errors:
+            self.risk_manager.halt_trading("Multiple consecutive API errors")
 
     def reset_api_errors(self) -> None:
         """Reset API error counter (after successful requests)"""
-        if self.api_error_count > 0:
-            self.logger.info(f"Resetting API error count from {self.api_error_count}")
-        self.api_error_count = 0
+        if self.consecutive_api_errors > 0:
+            self.logger.info(
+                f"Connection restored. Resetting consecutive errors from {self.consecutive_api_errors}. "
+                f"Total errors: {self.api_error_count}"
+            )
+        self.consecutive_api_errors = 0  # Only reset consecutive, keep total for monitoring
 
     def update_price_timestamp(self, timestamp: datetime) -> None:
         """

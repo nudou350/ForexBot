@@ -3,13 +3,21 @@ IBKR TWS API Connector for EUR/CAD Trading Bot
 Handles connection, data fetching, and order management
 """
 
+import asyncio
+import sys
+import os
+
+# Fix for Python 3.14+ asyncio event loop issue with ib_insync
+try:
+    asyncio.get_event_loop()
+except RuntimeError:
+    asyncio.set_event_loop(asyncio.new_event_loop())
+
 from ib_insync import *
 import pandas as pd
 from datetime import datetime
 from typing import Dict, List, Optional
 import logging
-import sys
-import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from config import config
@@ -38,6 +46,8 @@ class IBKRConnector:
         self.contract: Optional[Forex] = None
         self.is_connected = False
         self.logger = logging.getLogger(__name__)
+        self.reconnect_attempts = 0
+        self.max_reconnect_attempts = 5
 
     def connect(self) -> bool:
         """
@@ -47,8 +57,16 @@ class IBKRConnector:
             True if connected successfully
         """
         try:
+            # Disconnect first if already connected
+            if self.ib.isConnected():
+                try:
+                    self.ib.disconnect()
+                except:
+                    pass
+
             self.ib.connect(self.host, self.port, clientId=self.client_id)
             self.is_connected = True
+            self.reconnect_attempts = 0  # Reset counter on successful connection
             self.logger.info(f"Connected to IBKR on {self.host}:{self.port}")
             print(f"Connected to IBKR on port {self.port}")
 
@@ -61,6 +79,7 @@ class IBKRConnector:
         except Exception as e:
             self.logger.error(f"Connection failed: {e}")
             print(f"Connection failed: {e}")
+            self.is_connected = False
             return False
 
     def disconnect(self) -> None:
@@ -70,6 +89,77 @@ class IBKRConnector:
             self.is_connected = False
             self.logger.info("Disconnected from IBKR")
             print("Disconnected from IBKR")
+
+    def check_connection(self) -> bool:
+        """
+        Check if connection is still alive
+
+        Returns:
+            True if connected and healthy
+        """
+        try:
+            if not self.ib.isConnected():
+                self.is_connected = False
+                return False
+
+            # Try a simple request to verify connection is working
+            self.ib.reqCurrentTime()
+            self.is_connected = True
+            return True
+
+        except Exception as e:
+            self.logger.warning(f"Connection check failed: {e}")
+            self.is_connected = False
+            return False
+
+    def reconnect(self) -> bool:
+        """
+        Attempt to reconnect to IBKR with retry logic
+
+        Returns:
+            True if reconnection successful
+        """
+        import time
+
+        self.logger.warning("Attempting to reconnect to IBKR...")
+        print("\nConnection lost. Attempting to reconnect...")
+
+        while self.reconnect_attempts < self.max_reconnect_attempts:
+            self.reconnect_attempts += 1
+            wait_time = min(30, 5 * self.reconnect_attempts)  # Exponential backoff (max 30s)
+
+            self.logger.info(
+                f"Reconnection attempt {self.reconnect_attempts}/{self.max_reconnect_attempts} "
+                f"(waiting {wait_time}s)..."
+            )
+            print(
+                f"Reconnection attempt {self.reconnect_attempts}/{self.max_reconnect_attempts} "
+                f"(waiting {wait_time}s)..."
+            )
+
+            time.sleep(wait_time)
+
+            if self.connect():
+                self.logger.info("Reconnection successful!")
+                print("Reconnection successful!")
+                return True
+
+        self.logger.error(f"Failed to reconnect after {self.max_reconnect_attempts} attempts")
+        print(f"Failed to reconnect after {self.max_reconnect_attempts} attempts")
+        return False
+
+    def ensure_connection(self) -> bool:
+        """
+        Ensure connection is alive, reconnect if necessary
+
+        Returns:
+            True if connected (either already or after reconnect)
+        """
+        if self.check_connection():
+            return True
+
+        # Connection lost, try to reconnect
+        return self.reconnect()
 
     def get_historical_data(self, duration: str = None,
                            bar_size: str = None) -> Optional[pd.DataFrame]:
@@ -83,6 +173,11 @@ class IBKRConnector:
         Returns:
             DataFrame with OHLCV data or None
         """
+        # Ensure connection is alive before making request
+        if not self.ensure_connection():
+            self.logger.error("Cannot fetch historical data: not connected")
+            return None
+
         duration = duration or config.HISTORICAL_DATA_DURATION
         bar_size = bar_size or config.HISTORICAL_DATA_BARSIZE
 
@@ -112,6 +207,7 @@ class IBKRConnector:
 
         except Exception as e:
             self.logger.error(f"Error fetching historical data: {e}")
+            self.is_connected = False  # Mark as disconnected for next cycle
             return None
 
     def get_current_price(self) -> Optional[Dict]:
